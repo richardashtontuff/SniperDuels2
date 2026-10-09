@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>SNIPER DUELS - 3D FPS Engine</title>
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Native ES Module Import Map for Three.js -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three/three.module.js",
+      "three/addons/": "./vendor/three/addons/"
+    }
+  }
+  </script>
+</head>
+<body>
+
+  <!-- WebGL Render Canvas Container -->
+  <div id="canvas-container"></div>
+
+  <!-- Blocker / Start Screen -->
+  <div id="blocker">
+    <div class="start-card">
+      <div class="title-roblox">SNIPER DUELS</div>
+      <div class="subtitle">COMPETITIVE 3D WEB FPS • FIRST TO 6 WINS</div>
+
+      <div class="controls-grid">
+        <div><span class="key">WASD</span> Move / Strafe</div>
+        <div><span class="key">SPACE</span> Jump</div>
+        <div><span class="key">SHIFT</span> Sprint</div>
+        <div><span class="key">C / CTRL</span> Slide</div>
+        <div><span class="key">RIGHT CLICK</span> ADS / Scope Zoom</div>
+        <div><span class="key">LEFT CLICK</span> Shoot / Knife Slash</div>
+        <div><span class="key">1 / 2</span> Sniper / Knife (+32% Speed)</div>
+        <div><span class="key">Q</span> Quick Switch</div>
+        <div><span class="key">R</span> Reload Magazine</div>
+        <div><span class="key">F</span> Inspect Weapon</div>
+        <div><span class="key">E</span> Interact / Terminals</div>
+        <div><span class="key">L</span> Return to Lobby</div>
+      </div>
+
+      <button id="play-btn" class="start-btn" onclick="window.onStartGameClick && window.onStartGameClick()">▶ PLAY GAME</button>
+      <div class="play-prompt">TAP OR CLICK TO START</div>
+    </div>
+  </div>
+
+  <script>
+  window.onStartGameClick = function() {
+    var b = document.getElementById('blocker');
+    if (b) b.style.display = 'none';
+    if (window.__gameEngineInstance) {
+      if (window.__gameEngineInstance.audio) window.__gameEngineInstance.audio.ensureContext();
+      if (window.__gameEngineInstance.controls) window.__gameEngineInstance.controls.startGame();
+    }
+  };
+  </script>
+
+  <!-- Touch Look Drag Zone (Right side touch area on mobile) -->
+  <div id="touch-look-zone"></div>
+
+  <!-- Mobile Virtual Controls (Joystick & Action Buttons) -->
+  <div id="mobile-controls">
+    <!-- Left Virtual Joystick -->
+    <div id="joystick-zone">
+      <div id="joystick-base">
+        <div id="joystick-knob"></div>
+      </div>
+    </div>
+
+    <!-- Right Action Buttons -->
+    <div id="mobile-action-buttons">
+      <div class="mob-btn-row">
+        <div id="m-btn-switch" class="mob-btn">
+          <span class="btn-icon">🗡️</span>
+          <span class="btn-label">SWAP</span>
+        </div>
+        <div id="m-btn-reload" class="mob-btn">
+          <span class="btn-icon">🔄</span>
+          <span class="btn-label">RELOAD</span>
+        </div>
+        <div id="m-btn-ads" class="mob-btn">
+          <span class="btn-icon">🎯</span>
+          <span class="btn-label">SCOPE</span>
+        </div>
+      </div>
+      <div class="mob-btn-row">
+        <div id="m-btn-slide" class="mob-btn">
+          <span class="btn-icon">⚡</span>
+          <span class="btn-label">SLIDE</span>
+        </div>
+        <div id="m-btn-jump" class="mob-btn">
+          <span class="btn-icon">🦘</span>
+          <span class="btn-label">JUMP</span>
+        </div>
+        <div id="m-btn-fire" class="mob-btn">
+          <span class="btn-icon">💥</span>
+          <span class="btn-label">SHOOT</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HUD Overlay -->
+  <div id="hud-overlay">
+    <!-- Top Scoreboard & Round Banner -->
+    <div class="top-score-container">
+      <div class="scoreboard">
+        <div class="team-box team-blue">
+          <div class="team-name">BLUE</div>
+          <div class="team-score" id="score-blue">0</div>
+          <div class="score-pips" id="pips-blue"></div>
+        </div>
+
+        <div class="match-divider">VS</div>
+
+        <div class="team-box team-red">
+          <div class="score-pips" id="pips-red"></div>
+          <div class="team-score" id="score-red">0</div>
+          <div class="team-name">RED</div>
+        </div>
+
+        <div class="round-timer" id="round-timer">0:60</div>
+      </div>
+
+      <div id="match-status-banner">LOBBY PRACTICE - STEP ON A DUEL PAD TO PLAY</div>
+    </div>
+
+    <!-- Online Players & Queue Counter (Top Left) -->
+    <div id="online-counter" style="position: absolute; top: 24px; left: 28px; background: rgba(18, 21, 27, 0.88); padding: 9px 18px; border-radius: 8px; font-size: 13px; color: #00ffcc; font-weight: bold; border: 1px solid rgba(0,255,204,0.4); pointer-events: auto; z-index: 45; letter-spacing: 0.5px; display: flex; align-items: center; gap: 14px;">
+      <span>🟢 ONLINE: <span id="online-count">1</span> &nbsp;|&nbsp; 1v1 QUEUE: <span id="queue-count">0</span>/2</span>
+      <button id="mobile-toggle-btn" style="background: rgba(0,210,255,0.25); border: 1px solid #00d2ff; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;">🕹️ TOUCH</button>
+    </div>
+
+    <!-- Kill Feed (Top Right) -->
+    <div id="kill-feed"></div>
+
+    <!-- Top Right: Currency & Menu Buttons (Separate dedicated space) -->
+    <div id="top-right-hud">
+      <div class="currency-bar">
+        <span id="coin-display">350 🪙</span>
+        <button id="shop-open-btn" class="hud-btn">CRATES 📦</button>
+        <button id="map-open-btn" class="hud-btn" style="background: linear-gradient(135deg, #ffaa00, #ff6600);">MAPS 🗺️</button>
+        <button id="settings-open-btn" class="hud-btn" style="background: linear-gradient(135deg, #718096, #4a5568);">⚙️</button>
+      </div>
+    </div>
+
+    <!-- Bottom Left: Dedicated Health Bar -->
+    <div class="bottom-left-hud">
+      <div class="health-wrapper">
+        <div class="health-header">
+          <span>HEALTH</span>
+          <span id="health-text">100 HP</span>
+        </div>
+        <div class="health-bar-bg">
+          <div id="health-bar-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Right: Weapon & Ammo -->
+    <div class="bottom-right-hud">
+      <div class="weapon-card">
+        <div id="weapon-name">AWP BOLT-ACTION</div>
+        <div id="ammo-count">5 / 5</div>
+        <div id="bolt-status" style="display: none;">CYCLING BOLT...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dynamic Crosshair -->
+  <div id="crosshair">
+    <div class="crosshair-line top"></div>
+    <div class="crosshair-line bottom"></div>
+    <div class="crosshair-line left"></div>
+    <div class="crosshair-line right"></div>
+    <div class="crosshair-dot"></div>
+  </div>
+
+  <!-- Sniper Optical Scope Overlay (SVG) with Tactical Ammo Display -->
+  <div id="sniper-scope-overlay" style="display: none; opacity: 0;">
+    <div id="scope-ammo-container">
+      <span class="scope-ammo-tag">AMMO</span>
+      <span id="scope-ammo-val">5 / 5</span>
+    </div>
+
+    <svg class="scope-reticle-svg" viewBox="0 0 1000 1000">
+      <!-- Outer Scope Circle Reticle -->
+      <circle cx="500" cy="500" r="470" fill="none" stroke="#222" stroke-width="4"></circle>
+      <circle cx="500" cy="500" r="460" fill="none" stroke="#111" stroke-width="2"></circle>
+
+      <!-- Center Crosshair Lines -->
+      <line x1="40" y1="500" x2="480" y2="500" stroke="#000" stroke-width="2.5"></line>
+      <line x1="520" y1="500" x2="960" y2="500" stroke="#000" stroke-width="2.5"></line>
+      <line x1="500" y1="40" x2="500" y2="480" stroke="#000" stroke-width="2.5"></line>
+      <line x1="500" y1="520" x2="500" y2="960" stroke="#000" stroke-width="2.5"></line>
+
+      <!-- Mil-Dots along Horizontal Axis -->
+      <circle cx="420" cy="500" r="2.5" fill="#111"></circle>
+      <circle cx="360" cy="500" r="2.5" fill="#111"></circle>
+      <circle cx="300" cy="500" r="2.5" fill="#111"></circle>
+      <circle cx="240" cy="500" r="2.5" fill="#111"></circle>
+      <circle cx="580" cy="500" r="2.5" fill="#111"></circle>
+      <circle cx="640" cy="500" r="2.5" fill="#111"></circle>
+      <circle cx="700" cy="500" r="2.5" fill="#111"></circle>
+      <circle cx="760" cy="500" r="2.5" fill="#111"></circle>
+
+      <!-- Bullet Drop Stadia Lines along Vertical Axis -->
+      <line x1="485" y1="550" x2="515" y2="550" stroke="#111" stroke-width="1.8"></line>
+      <line x1="475" y1="600" x2="525" y2="600" stroke="#111" stroke-width="1.8"></line>
+      <line x1="465" y1="650" x2="535" y2="650" stroke="#111" stroke-width="1.8"></line>
+      <line x1="450" y1="700" x2="550" y2="700" stroke="#111" stroke-width="1.8"></line>
+      <line x1="435" y1="750" x2="565" y2="750" stroke="#111" stroke-width="1.8"></line>
+
+      <!-- Illuminated Red Center Point -->
+      <circle cx="500" cy="500" r="3.2" fill="#ff0044"></circle>
+      <circle cx="500" cy="500" r="6" fill="none" stroke="#ff0044" stroke-width="1.2" opacity="0.8"></circle>
+    </svg>
+  </div>
+
+  <!-- Hitmarker -->
+  <div id="hitmarker"></div>
+
+  <!-- Damage Screen Pulse -->
+  <div id="damage-vignette"></div>
+
+  <!-- Low Health Blood Vignette -->
+  <div id="low-health-vignette"></div>
+
+  <!-- Crate Shop Modal -->
+  <div id="shop-modal">
+    <div class="shop-window">
+      <div class="shop-header">
+        <div class="shop-title">WEAPON CASE UNBOXING & SKINS</div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <span style="color: var(--gold); font-weight: bold;"><span id="shop-coins-counter">350</span> 🪙</span>
+          <button id="shop-close-btn" class="shop-close-x">&times;</button>
+        </div>
+      </div>
+
+      <div class="shop-body">
+        <div class="case-grid" id="case-list-container"></div>
+
+        <div class="inventory-section">
+          <div style="font-size: 16px; font-weight: 800; color: #00d2ff;">MY INVENTORY & SKINS</div>
+          <div class="inventory-grid" id="inventory-list-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CS:GO / Roblox Roulette Unboxing Overlay -->
+  <div id="roulette-overlay">
+    <div style="color: #00d2ff; font-size: 24px; font-weight: 900; margin-bottom: 24px; letter-spacing: 2px;">
+      UNBOXING CASE...
+    </div>
+    <div class="roulette-viewport">
+      <div class="roulette-needle"></div>
+      <div id="roulette-strip"></div>
+    </div>
+  </div>
+
+  <!-- Reward Celebration Modal -->
+  <div id="reward-modal">
+    <div class="reward-card" id="reward-content"></div>
+  </div>
+
+  <!-- 10-Second 1v1 Map Voting Overlay -->
+  <div id="map-vote-overlay" style="display: none;">
+    <div class="vote-modal">
+      <div class="vote-header">
+        <div class="vote-title">1v1 DUEL — VOTE FOR MAP</div>
+        <div class="vote-timer" id="vote-timer-text">TIME: 10s</div>
+      </div>
+      <div class="vote-subtitle" id="vote-status-text">Pick your arena! Most votes wins • Random on tie</div>
+      <div class="vote-grid">
+        <div class="vote-card" data-vote="blockout" id="vote-card-blockout">
+          <div class="vote-icon">🧱</div>
+          <div class="vote-name">BLOCKOUT</div>
+          <div class="vote-desc">Symmetrical Competitive Arena</div>
+          <div class="vote-count-badge" id="vote-badge-blockout">0 VOTES</div>
+        </div>
+        <div class="vote-card" data-vote="poolday" id="vote-card-poolday">
+          <div class="vote-icon">🏊</div>
+          <div class="vote-name">POOL DAY</div>
+          <div class="vote-desc">Sunken Pool & Diving Boards</div>
+          <div class="vote-count-badge" id="vote-badge-poolday">0 VOTES</div>
+        </div>
+        <div class="vote-card" data-vote="rooftop" id="vote-card-rooftop">
+          <div class="vote-icon">🏙️</div>
+          <div class="vote-name">ROOFTOP SKYLINE</div>
+          <div class="vote-desc">Skyscraper Helipad & Ducts</div>
+          <div class="vote-count-badge" id="vote-badge-rooftop">0 VOTES</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map Selector Modal -->
+  <div id="map-modal">
+    <div class="shop-window" style="max-width: 960px;">
+      <div class="shop-header">
+        <div class="shop-title">SELECT DUEL ARENA</div>
+        <button id="map-close-btn" class="shop-close-x">&times;</button>
+      </div>
+      <div class="shop-body">
+        <div class="map-grid">
+          <div class="map-card selected" data-map="blockout">
+            <div class="map-thumbnail">🧱</div>
+            <div class="map-title">BLOCKOUT</div>
+            <div class="map-desc">Iconic symmetrical competitive arena. Stud platforms, team ramps, elevated mid bridge & high-ground perches.</div>
+            <button class="case-open-btn map-select-btn">SELECTED</button>
+          </div>
+          <div class="map-card" data-map="poolday">
+            <div class="map-thumbnail">🏊</div>
+            <div class="map-title">POOL DAY</div>
+            <div class="map-desc">Classic low-poly swimming pool with translucent water, dual sniper diving boards & locker room cabanas.</div>
+            <button class="case-open-btn map-select-btn">SELECT MAP</button>
+          </div>
+          <div class="map-card" data-map="rooftop">
+            <div class="map-thumbnail">🏙️</div>
+            <div class="map-title">ROOFTOP SKYLINE</div>
+            <div class="map-desc">High-rise skyscraper rooftop featuring illuminated center helipad, industrial ventilation ducts & night skyline.</div>
+            <button class="case-open-btn map-select-btn">SELECT MAP</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal">
+    <div class="shop-window" style="max-width: 580px;">
+      <div class="shop-header">
+        <div class="shop-title">GAME SETTINGS</div>
+        <button id="settings-close-btn" class="shop-close-x">&times;</button>
+      </div>
+      <div class="shop-body">
+        <div class="settings-group">
+          <div class="setting-row">
+            <div class="setting-label">Mouse Sensitivity</div>
+            <div class="setting-ctrl">
+              <input type="range" id="sens-slider" min="0.0008" max="0.005" step="0.0002" value="0.0022">
+              <span id="sens-val" style="min-width: 38px; font-family: monospace;">2.2</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Field of View (FOV)</div>
+            <div class="setting-ctrl">
+              <input type="range" id="fov-slider" min="65" max="100" step="1" value="75">
+              <span id="fov-val" style="min-width: 38px; font-family: monospace;">75°</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Lobby Synthwave BGM</div>
+            <div class="setting-ctrl">
+              <button id="bgm-toggle-btn" class="hud-btn" style="background: #2ecc71;">MUSIC: ON</button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Crosshair Color</div>
+            <div class="setting-ctrl">
+              <select id="crosshair-color-select">
+                <option value="#00ffcc" selected>Cyan Neon</option>
+                <option value="#ffffff">Pure White</option>
+                <option value="#2ecc71">Toxic Green</option>
+                <option value="#ffaa00">Orange Gold</option>
+                <option value="#ff0055">Ruby Pink</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Game Script -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
