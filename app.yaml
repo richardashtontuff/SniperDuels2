@@ -1,0 +1,11 @@
+kind: wasmer.io/App.v0
+name: SniperDuels2
+owner: procoder67tuff
+package: .
+app_id: da_KWgIvtQU5dQj
+annotations:
+  anybuild.run/config:
+    name: out
+  anybuild.run/provider: staticfile
+  anybuild.run/version: 0.33.0
+  wasmer.io/version: 7.5.0
