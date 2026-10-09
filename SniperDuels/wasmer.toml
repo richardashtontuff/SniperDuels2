@@ -6,7 +6,7 @@ license = "MIT"
 
 [[command]]
 name = "server"
-module = "server"
+module = "server.js"
 runner = "https://webc.org/runner/node"
 
 [fs]
